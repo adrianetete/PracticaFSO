@@ -9,47 +9,45 @@ int nNumeros, tamBuffer1, tamBuffer2;
 int *buffer1;
 int *buffer2;
 
-//int i = 0, j = 0, consum = 0;
+//Indices globales de los buffer1 y buffer2
+int indiceB1;
 
 //Semaforos que indican si esta vacio o hay dato en los buffers
 sem_t espacioB1;
 sem_t datoB1;
-sem_t espacioB2;
-sem_t datoB2;
 
 //Semaforos para garantizar la exclusion mutua en las variables globales
-
-sem_t mutexI;
-sem_t mutexJ;
-sem_t mutexConsum;
+sem_t mutexLeer;
 
 //Metodo comprobacion de que sea primo
 int esPrimo (int num){
    
-    int i, a;
+    int i, a = 0;
   
-    for( i = 0; i < num; i++) {
+    for( i = 1; i <= num; i++) {
 	  
         if( num%i == 0 )
-        a++;		
+        a++;
     }
 
-    if( a == 2 ) {
+    if( a == 2 || num <= 1){
 
-        //Si es divisible, retorna 1
+        //Si es primo, retorna 1
         return 1;
-    }else {
+    }else{
 
-        //Si no es divisible retorna 0
+        //Si no es primo retorna 0
         return 0;
-	}
+    }
+	
 }
 
-void *productor (){
+void *productor ( void *arg){
    
     //Variables locales del hilo productor
-	int indice = tamBuffer1;
     int i, numAleat;
+
+    srand ((unsigned) time(NULL));
 	
 	//printf("Nums: %d, indice: %d, i: %d \n", nNumeros, indice, i);
 	//Bucle que va generando aleatorios y los guarda en el buffer1
@@ -62,28 +60,46 @@ void *productor (){
         sem_wait(&espacioB1);
 
         //los indices del buffer1 funcionan de manera circular
-        buffer1[indice%tamBuffer1] = numAleat;
-		indice++;
+        buffer1[i % tamBuffer1] = numAleat;
 
-        //sem_post(&datoB1);
+		//Indicamos que se ha introducido un dato en el buffer
+        sem_post(&datoB1);
     } 
 }
 
 
-void *consumTest (){
+void *consumidor (void *arg){
 
-	int j;
+	int j, dato;
 
-	//Testeo de lo que contiene el buffer1
-    for(j = 0; j < tamBuffer1; j ++){
-	    
-        printf("%d\n", buffer1[j]);
-    }
+	for( j = 0; j < nNumeros; j++ ){
+
+		sem_wait(&datoB1);
+
+		//Sincronizamos para que solo lea un indice al mismo tiempo
+		sem_wait(&mutexLeer);
+		dato = buffer1[indiceB1 % tamBuffer1];
+		indiceB1++;
+		sem_post(&mutexLeer);
+
+		if( esPrimo(dato) == 1 ){
+
+			printf("%d es primo.\n", dato);
+		}else{
+
+			printf("%d no es primo.\n", dato);
+		}
+		
+		//Marcamos libre un espacio del buffer1
+		sem_post(&espacioB1);
+	}
 
 }
 
 //Metodo principal
 int main ( int argc, char* argv[] ) { 
+
+	int i; 
 
     //Comprobar que se introducen solo 3 argumentos
     if (argc != 4){
@@ -132,6 +148,11 @@ int main ( int argc, char* argv[] ) {
 
 	//Establecemos el tamaño de buffer1 para el semaforo
 	sem_init(&espacioB1, 0, tamBuffer1);
+
+	//Iniciamos el buffer1 vacio
+	sem_init(&datoB1, 0, 0);
+
+	sem_init (&mutexLeer, 0, 1); 
     
     //Reserva de memoria para el buffer1
 	buffer1 = (int*)malloc(tamBuffer1 * sizeof(int));
@@ -142,21 +163,29 @@ int main ( int argc, char* argv[] ) {
     }
 
 	//Declaramos el hilo productor
-	pthread_t tid;
-	pthread_t tid2;
+	pthread_t hiloProduce;
+
+	//Declaramos los hilos consumidores
+	pthread_t hiloConsume;
 
 	//Creamos el hilo para el productor
-	pthread_create(&tid, NULL, productor, NULL);
+	pthread_create(&hiloProduce, NULL, productor, (void *) NULL);
 
-	//Creamos el hilo para el productor
-	pthread_create(&tid2, NULL, consumTest, NULL);
+	//Creamos los hilos para los consumidores
+	//for(i = 0; i < 1; i++){
+		pthread_create(&hiloConsume, NULL, consumidor, (void *) NULL);
+	//}
 
     //Esperamos a que acabe el proceso productor
-    pthread_join(tid, NULL);
-    //Esperamos a que acabe el proceso productor
-    pthread_join(tid2, NULL);
+    pthread_join(hiloProduce, NULL);
+
+    //Esperamos a que acabe el proceso consumidor
+    //for(i = 0; i < 1; i++){
+    	pthread_join(hiloConsume, NULL);
+    //}
 
     sem_destroy(&espacioB1);
+    sem_destroy(&datoB1);
 
     //Fin del programa sin errores
     exit(0);
