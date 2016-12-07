@@ -6,8 +6,15 @@
 
 //Declaracion de variables globales
 int nNumeros, tamBuffer1, tamBuffer2;
+ 
+struct Todo{
+      int numero;
+      int hilo;
+      int primo;
+};
+
 int *buffer1;
-int *buffer2;
+struct Todo *buffer2;
 
 #define N_HILOS 4
 
@@ -17,9 +24,13 @@ int indiceB1;
 //Semaforos que indican si esta vacio o hay dato en los buffers
 sem_t espacioB1;
 sem_t datoB1;
+sem_t espacioB2;
+sem_t datoB2;
 
 //Semaforos para garantizar la exclusion mutua en las variables globales
 sem_t mutexLeer;
+sem_t mutexLeer2;
+ 
 
 //Metodo comprobacion de que sea primo
 int esPrimo (int num){
@@ -71,12 +82,15 @@ void *productor ( void *arg){
 }
 
 
-void *consumidor (void *arg){
 
+void *consumidor (void *arg){
+	
+	struct Todo info;
 	int j, dato;
 	int id = *((int *) arg);
 
 	while(1){
+				
 		sem_wait(&mutexLeer);
 		j = indiceB1;
 		indiceB1++;
@@ -89,18 +103,34 @@ void *consumidor (void *arg){
 		sem_wait(&datoB1);
         	dato = buffer1[indiceB1 % tamBuffer1];
         	sem_post(&espacioB1);
+		
+		info.numero = dato;
+		info.hilo = id;
 
 		if( esPrimo(dato) == 1 ){
+		
+		info.primo = 1;
 
-            	printf("%d es primo. Hilo %d.\n", dato, id);
         	}else{
+		
+		info.primo = 0;
+		
+		}
 
-            	printf("%d no es primo. Hilo %d.\n", dato, id);
-        	}
+	        //Esperar a que haya un hueco en el buffer2
+	        sem_wait(&espacioB2);
+	
+	        //los indices del buffer2 funcionan de manera circular
+	        buffer2[j % tamBuffer2] = info;
+	
+	        //Indicamos que se ha introducido un dato en el buffer
+	        sem_post(&datoB2);
+		printf("dato añadido");     	
+		}
 		
        
        
-    	}
+    	
    
 }
 
@@ -162,6 +192,11 @@ int main ( int argc, char* argv[] ) {
 
     sem_init (&mutexLeer, 0, 1); 
     
+    //Iniciamos el buffer2 vacio
+    sem_init(&datoB2, 0, 0);
+
+    sem_init(&dmutexLeer2, 0, 1);
+
     //Reserva de memoria para el buffer1
     buffer1 = (int*)malloc(tamBuffer1 * sizeof(int));
     if ( buffer1 == NULL ){
@@ -169,6 +204,13 @@ int main ( int argc, char* argv[] ) {
         fprintf(stderr, "Error al reservar memoria.\n");
         exit(2);
     }
+
+    buffer2 = (int*)malloc(tamBuffer2 * sizeof(int));
+    if ( buffer2 == NULL){
+
+	fprintf(stderr, "Error al reservar memoria");
+	exit(2);
+	}
 
     //Declaramos el hilo productor
     pthread_t hiloProduce;
@@ -195,6 +237,9 @@ int main ( int argc, char* argv[] ) {
     sem_destroy(&espacioB1);
     sem_destroy(&datoB1);
     sem_destroy(&mutexLeer);
+    sem_destroy(&espacioB2);
+    sem_destroy(&datoB2);
+    sem_destroy(&mutexLeer2);
 
     //Fin del programa sin errores
     exit(0);
