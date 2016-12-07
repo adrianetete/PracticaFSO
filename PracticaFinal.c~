@@ -75,11 +75,12 @@ void *consumidor (void *arg){
 
 	int j, dato;
 	int id = *((int *) arg);
+	int siguiente;
 
 	while(1){
 		sem_wait(&mutexLeer);
-		j = indiceB1;
-		indiceB1++;
+		j = siguiente;
+		siguiente++;
 		sem_post(&mutexLeer);
 		
 		if(!(j < nNumeros)){
