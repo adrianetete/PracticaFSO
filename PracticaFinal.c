@@ -27,7 +27,7 @@ int esPrimo (int num){
     int i, a = 0;
   
     for( i = 1; i <= num; i++) {
-	  
+      
         if( num%i == 0 )
         a++;
     }
@@ -41,7 +41,7 @@ int esPrimo (int num){
         //Si no es primo retorna 0
         return 0;
     }
-	
+    
 }
 
 void *productor ( void *arg){
@@ -50,11 +50,11 @@ void *productor ( void *arg){
     int i, numAleat;
 
     srand ((unsigned) time(NULL));
-	
+    
     //printf("Nums: %d, indice: %d, i: %d \n", nNumeros, indice, i);
     //Bucle que va generando aleatorios y los guarda en el buffer1
     for( i = 0; i < nNumeros; i++){
-	   
+       
         //La variable toma un valor entre 0 y 99999
         numAleat = rand() % 100000;
 
@@ -73,45 +73,46 @@ void *productor ( void *arg){
 
 void *consumidor (void *arg){
 
-	int j, dato;
-	int id = *((int *) arg);
+    int j, dato;
+    int id = *((int *) arg);
 
-	while(1){
-		sem_wait(&mutexLeer);
-		j = indiceB1;
-		indiceB1++;
-		sem_post(&mutexLeer);
-		
-		if(!(j < nNumeros)){
-			pthread_exit(NULL);
-		}
-		
-		sem_wait(&datoB1);
-        	dato = buffer1[indiceB1 % tamBuffer1];
-        	sem_post(&espacioB1);
+    while ( 1 ){
 
-		if( esPrimo(dato) == 1 ){
+        if (indiceB1 >= nNumeros) {    
+            printf("Fin hilo %d.\n", id);     
+            pthread_exit(NULL);
+        }
 
-            	printf("%d es primo. Hilo %d.\n", dato, id);
-        	}else{
+        sem_wait(&mutexLeer);
+        j = indiceB1;
+        indiceB1++;
+        sem_post(&mutexLeer); 
 
-            	printf("%d no es primo. Hilo %d.\n", dato, id);
-        	}
-		
-       
-       
-    	}
-   
+        sem_wait(&datoB1);
+        //Sincronizamos para que solo lea un indice al mismo tiempo
+        dato = buffer1[j % tamBuffer1];     
+        //Marcamos libre un espacio del buffer1
+        sem_post(&espacioB1);        
+
+        if( esPrimo(dato) == 1 ){
+
+            printf("buffer1[%d] = %d es primo. Hilo %d.\n",j , dato, id);
+        }else{
+
+            printf("buffer1[%d] = %d no es primo. Hilo %d.\n",j , dato, id);
+        }
+
+     }
 }
 
 //Metodo principal
 int main ( int argc, char* argv[] ) { 
 
-    int i; 
+    int i, id_hilo[N_HILOS]; 
 
     //Comprobar que se introducen solo 3 argumentos
     if (argc != 4){
-	   
+       
         fprintf(stderr, "Error en el numero de argumentos\n");
         exit(-1);
     }
@@ -120,7 +121,7 @@ int main ( int argc, char* argv[] ) {
     nNumeros = atoi( argv[1] );
     tamBuffer1 = atoi( argv[2] );
     tamBuffer2 = atoi( argv[3] );
-	
+    
     //Comprobar que el numero de aleatorios generados no es negativo
     if(nNumeros < 0){
 
@@ -130,9 +131,9 @@ int main ( int argc, char* argv[] ) {
 
     //Comprobar que el buffer1 es al menos la mitad de nNumeros
     if( tamBuffer1 > (nNumeros/2) ){
-		
+        
         fprintf(stderr, "Error. \"Buffer1\" debe ser como maximo la mitad de \"Numeros\".\n");
-        exit(2);	
+        exit(2);    
     }
 
     //Comprobar que el tamaño del buffer1 no es negativo
@@ -142,8 +143,8 @@ int main ( int argc, char* argv[] ) {
         exit(3);
     }
 
-	//Comprobar que el tamaño del buffer2 no es negativo
-	if(tamBuffer2 <= 0){
+    //Comprobar que el tamaño del buffer2 no es negativo
+    if(tamBuffer2 <= 0){
 
         fprintf(stderr, "Error. El tamaño del Buffer2 no puede ser negativo ni nulo.\n");
         exit(4);
@@ -165,7 +166,7 @@ int main ( int argc, char* argv[] ) {
     //Reserva de memoria para el buffer1
     buffer1 = (int*)malloc(tamBuffer1 * sizeof(int));
     if ( buffer1 == NULL ){
-		
+        
         fprintf(stderr, "Error al reservar memoria.\n");
         exit(2);
     }
@@ -179,9 +180,14 @@ int main ( int argc, char* argv[] ) {
     //Creamos el hilo para el productor
     pthread_create(&hiloProduce, NULL, productor, (void *) NULL);
 
+    for(i = 0; i < N_HILOS; i++){
+
+        id_hilo[i] = i+1;
+    }
+
     //Creamos los hilos para los consumidores
     for(i = 0; i < N_HILOS; i++){
-        pthread_create(&hiloConsume[i], NULL, consumidor, (void *) &i);
+        pthread_create(&hiloConsume[i], NULL, consumidor, (void *) &id_hilo[i]);
     }
 
     //Esperamos a que acabe el proceso productor
@@ -189,7 +195,7 @@ int main ( int argc, char* argv[] ) {
 
     //Esperamos a que acabe el proceso consumidor
     for(i = 0; i < N_HILOS; i++){
-    	pthread_join(hiloConsume[i], NULL);
+        pthread_join(hiloConsume[i], NULL);
     }
 
     sem_destroy(&espacioB1);
