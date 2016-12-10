@@ -84,11 +84,11 @@ void *productor ( void *arg){
 
 
 void *consumidor (void *arg){
-	
+	//Creacion del struct para pasar todos los datos al buffer 2, con la variable llamada info
 	struct Todo info;
 	int j, dato;
 	int id = *((int *) arg);
-
+	
 	while(1){
 				
 		sem_wait(&mutexLeer);
@@ -178,8 +178,10 @@ int main ( int argc, char* argv[] ) {
         fprintf(stderr, "Error. El tamaño del Buffer2 no puede ser negativo ni nulo.\n");
         exit(4);
     }
-
+    printf("nfcsd");
     printf("%d, %d, %d\n", nNumeros, tamBuffer1, tamBuffer2);
+   
+
     /*
     sem_init(&datoB1, 0, 0);
     */
@@ -192,10 +194,6 @@ int main ( int argc, char* argv[] ) {
 
     sem_init (&mutexLeer, 0, 1); 
     
-    //Iniciamos el buffer2 vacio
-    sem_init(&datoB2, 0, 0);
-
-    sem_init(&dmutexLeer2, 0, 1);
 
     //Reserva de memoria para el buffer1
     buffer1 = (int*)malloc(tamBuffer1 * sizeof(int));
@@ -205,7 +203,16 @@ int main ( int argc, char* argv[] ) {
         exit(2);
     }
 
-    buffer2 = (int*)malloc(tamBuffer2 * sizeof(int));
+    
+    //Establecemos el tamaño buffer2 para el semaforo 
+    sem_init(&espacioB2,0,tamBuffer2);
+    
+    //Iniciamos el buffer2 vacio
+    sem_init(&datoB2, 0, 0);
+
+    sem_init(&mutexLeer2, 0, 1);
+
+    buffer2 = (struct Todo*)malloc(tamBuffer2 * sizeof(struct Todo));
     if ( buffer2 == NULL){
 
 	fprintf(stderr, "Error al reservar memoria");
