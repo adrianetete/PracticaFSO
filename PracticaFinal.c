@@ -188,6 +188,13 @@ int main ( int argc, char* argv[] ) {
         exit(2);    
     }
 
+    //Comprobar que el buffer2 es al menos la mitad de nNumeros
+    if( tamBuffer2 > (nNumeros/2) ){
+        
+        fprintf(stderr, "Error. \"Buffer2\" debe ser como maximo la mitad de \"Numeros\".\n");
+        exit(2);    
+    }
+
     //Comprobar que el tamaño del buffer1 no es negativo
     if(tamBuffer1 <= 0){
 
