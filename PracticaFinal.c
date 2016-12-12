@@ -4,22 +4,33 @@
 #include <pthread.h>
 #include <string.h>
 
+#define N_HILOS 4
+
 //Declaracion de variables globales
 int nNumeros, tamBuffer1, tamBuffer2;
 int *buffer1;
-int *buffer2;
 
-#define N_HILOS 4
+struct Todo{
+      int numero;
+      int hilo;
+      int primo;
+};
+
+struct Todo *buffer2;
 
 //Indices globales de los buffer1 y buffer2
 int indiceB1;
+int indiceB2;
 
 //Semaforos que indican si esta vacio o hay dato en los buffers
 sem_t espacioB1;
 sem_t datoB1;
+sem_t espacioB2;
+sem_t datoB2;
 
 //Semaforos para garantizar la exclusion mutua en las variables globales
-sem_t mutexLeer;
+sem_t mutexLeer1;
+sem_t mutexLeer2;
 
 //Metodo comprobacion de que sea primo
 int esPrimo (int num){
@@ -70,9 +81,9 @@ void *productor ( void *arg){
     pthread_exit(NULL);
 }
 
-
 void *consumidor (void *arg){
 
+    struct Todo info;
     int j, dato;
     int id = *((int *) arg);
 
@@ -83,10 +94,10 @@ void *consumidor (void *arg){
             pthread_exit(NULL);
         }
 
-        sem_wait(&mutexLeer);
+        sem_wait(&mutexLeer1);
         j = indiceB1;
         indiceB1++;
-        sem_post(&mutexLeer); 
+        sem_post(&mutexLeer1); 
 
         sem_wait(&datoB1);
         //Sincronizamos para que solo lea un indice al mismo tiempo
@@ -94,15 +105,56 @@ void *consumidor (void *arg){
         //Marcamos libre un espacio del buffer1
         sem_post(&espacioB1);        
 
+        info.numero = dato;
+        info.hilo = id;
+
         if( esPrimo(dato) == 1 ){
-
-            printf("buffer1[%d] = %d es primo. Hilo %d.\n",j , dato, id);
+            info.primo = 1;
+            //printf("buffer1[%d] = %d es primo. Hilo %d.\n",j , dato, id);
         }else{
-
-            printf("buffer1[%d] = %d no es primo. Hilo %d.\n",j , dato, id);
+            info.primo = 0;
+            //printf("buffer1[%d] = %d no es primo. Hilo %d.\n",j , dato, id);
         }
 
+        //Metemos el dato en el buffer2
+        sem_wait(&espacioB2);
+        buffer2[j % tamBuffer2] = info;
+        sem_post(&datoB2);
      }
+}
+
+void *consumidorFinal (void *arg){
+
+    struct Todo info;
+    int j;
+
+    while ( 1 ){
+
+        //Cerramos el hilo cuando el buffer no tenga mas numeros que procesar
+        if (indiceB2 >= nNumeros) {    
+            printf("Fin consumidor final. \n");     
+            pthread_exit(NULL);
+        }
+
+        //Sincronizar la lectura del indice del buffer2
+        sem_wait(&mutexLeer2);
+        j = indiceB2;
+        indiceB2++;
+        sem_post(&mutexLeer2); 
+
+        //Esperar a que haya un dato en el buffer2
+        sem_wait(&datoB2);        
+        info = buffer2[j % tamBuffer2];     
+        //Marcamos libre un espacio del buffer2
+        sem_post(&espacioB2);
+
+        //Imprimimos los datos del numero
+        if( esPrimo(info.numero) == 1 ){
+            printf("buffer2[%d] = %d es primo. Hilo %d.\n",j , info.numero, info.hilo);
+        }else{
+            printf("buffer2[%d] = %d no es primo. Hilo %d.\n",j , info.numero, info.hilo);
+        }
+    }
 }
 
 //Metodo principal
@@ -151,9 +203,6 @@ int main ( int argc, char* argv[] ) {
     }
 
     printf("%d, %d, %d\n", nNumeros, tamBuffer1, tamBuffer2);
-    /*
-    sem_init(&datoB1, 0, 0);
-    */
 
     //Establecemos el tamaño de buffer1 para el semaforo
     sem_init(&espacioB1, 0, tamBuffer1);
@@ -161,9 +210,10 @@ int main ( int argc, char* argv[] ) {
     //Iniciamos el buffer1 vacio
     sem_init(&datoB1, 0, 0);
 
-    sem_init (&mutexLeer, 0, 1); 
+    //El semaforo mutexLeer1 solo va a poder ser usado por un hilo a la vez
+    sem_init (&mutexLeer1, 0, 1); 
     
-    //Reserva de memoria para el buffer1
+    //Reserva de memoria dinamica para el buffer1
     buffer1 = (int*)malloc(tamBuffer1 * sizeof(int));
     if ( buffer1 == NULL ){
         
@@ -171,36 +221,61 @@ int main ( int argc, char* argv[] ) {
         exit(2);
     }
 
-    //Declaramos el hilo productor
-    pthread_t hiloProduce;
+    //Establecemos el tamaño buffer2 para el semaforo 
+    sem_init(&espacioB2, 0, tamBuffer2);
+    
+    //Iniciamos el buffer2 vacio, no hay datos
+    sem_init(&datoB2, 0, 0);
 
-    //Declaramos los hilos consumidores
-    pthread_t hiloConsume[N_HILOS];
+    //El semaforo mutexLeer2 solo va a poder ser usado por un hilo a la vez
+    sem_init(&mutexLeer2, 0, 1);
+
+    //Reserva de memoria dinamica para el buffer2
+    buffer2 = (struct Todo*)malloc(tamBuffer2 * sizeof(struct Todo));
+    if ( buffer2 == NULL){
+
+        fprintf(stderr, "Error al reservar memoria");
+        exit(2);
+    }
+
+    //Declaramos los hilos: productor, consumidores intermedios y final
+    pthread_t hiloProduce, hiloConsume[N_HILOS], hiloConsumeFinal;
 
     //Creamos el hilo para el productor
     pthread_create(&hiloProduce, NULL, productor, (void *) NULL);
 
+    //Damos un id a los hilos consumidores intermedios
     for(i = 0; i < N_HILOS; i++){
 
         id_hilo[i] = i+1;
     }
 
-    //Creamos los hilos para los consumidores
+    //Creamos los hilos para los consumidores intermedios
     for(i = 0; i < N_HILOS; i++){
         pthread_create(&hiloConsume[i], NULL, consumidor, (void *) &id_hilo[i]);
     }
 
+    //Creamos el hilo consumidor final
+    pthread_create(&hiloConsumeFinal, NULL, consumidorFinal, (void *) NULL);
+
     //Esperamos a que acabe el proceso productor
     pthread_join(hiloProduce, NULL);
 
-    //Esperamos a que acabe el proceso consumidor
+    //Esperamos a que acaben los procesos consumidores intermedios
     for(i = 0; i < N_HILOS; i++){
         pthread_join(hiloConsume[i], NULL);
     }
 
+    //Esperamos a que acabe el proceso consumidor final
+    pthread_join(hiloConsumeFinal, NULL);
+
+    //Damos fin a los semaforos usados
     sem_destroy(&espacioB1);
     sem_destroy(&datoB1);
-    sem_destroy(&mutexLeer);
+    sem_destroy(&mutexLeer1);
+    sem_destroy(&espacioB2);
+    sem_destroy(&datoB2);
+    sem_destroy(&mutexLeer2);
 
     //Fin del programa sin errores
     exit(0);
