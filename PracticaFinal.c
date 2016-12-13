@@ -9,14 +9,7 @@
 //Declaracion de variables globales
 int nNumeros, tamBuffer1, tamBuffer2;
 int *buffer1;
-
-struct Todo{
-      int numero;
-      int hilo;
-      int primo;
-};
-
-struct Todo *buffer2;
+char **buffer2;
 
 //Indices globales de los buffer1 y buffer2
 int indiceB1;
@@ -37,32 +30,25 @@ int esPrimo (int num){
    
     int i, a = 0;
   
-    for( i = 1; i <= num; i++) {
-      
+    for( i = 1; i <= num; i++) {      
         if( num%i == 0 )
         a++;
     }
-
     if( a == 2 || num <= 1){
-
         //Si es primo, retorna 1
         return 1;
     }else{
-
         //Si no es primo retorna 0
         return 0;
-    }
-    
+    }    
 }
 
 void *productor ( void *arg){
    
     //Variables locales del hilo productor
     int i, numAleat;
-
     srand ((unsigned) time(NULL));
     
-    //printf("Nums: %d, indice: %d, i: %d \n", nNumeros, indice, i);
     //Bucle que va generando aleatorios y los guarda en el buffer1
     for( i = 0; i < nNumeros; i++){
        
@@ -83,56 +69,48 @@ void *productor ( void *arg){
 
 void *consumidor (void *arg){
 
-    struct Todo info;
+    char *mensaje;
     int j, dato;
     int id = *((int *) arg);
 
     while ( 1 ){
 
         if (indiceB1 >= nNumeros) {    
-            printf("Fin hilo %d.\n", id);     
             pthread_exit(NULL);
         }
 
+        //Sincronizamos la lectura del indiceB1
         sem_wait(&mutexLeer1);
         j = indiceB1;
         indiceB1++;
         sem_post(&mutexLeer1); 
 
-        sem_wait(&datoB1);
         //Sincronizamos para que solo lea un indice al mismo tiempo
+        sem_wait(&datoB1);
         dato = buffer1[j % tamBuffer1];     
         //Marcamos libre un espacio del buffer1
         sem_post(&espacioB1);        
 
-        info.numero = dato;
-        info.hilo = id;
-
-        if( esPrimo(dato) == 1 ){
-            info.primo = 1;
-            //printf("buffer1[%d] = %d es primo. Hilo %d.\n",j , dato, id);
-        }else{
-            info.primo = 0;
-            //printf("buffer1[%d] = %d no es primo. Hilo %d.\n",j , dato, id);
-        }
-
-        //Metemos el dato en el buffer2
+        //Metemos el mensaje en el buffer2
         sem_wait(&espacioB2);
-        buffer2[j % tamBuffer2] = info;
+        if( esPrimo(dato) == 1 ){
+            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. Es primo.", id, j, dato);
+        }else{
+            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. No es primo.", id, j, dato);
+        }
         sem_post(&datoB2);
      }
 }
 
 void *consumidorFinal (void *arg){
 
-    struct Todo info;
+    char *mensaje;
     int j;
 
     while ( 1 ){
 
         //Cerramos el hilo cuando el buffer no tenga mas numeros que procesar
-        if (indiceB2 >= nNumeros) {    
-            printf("Fin consumidor final. \n");     
+        if (indiceB2 >= nNumeros) {
             pthread_exit(NULL);
         }
 
@@ -144,16 +122,12 @@ void *consumidorFinal (void *arg){
 
         //Esperar a que haya un dato en el buffer2
         sem_wait(&datoB2);        
-        info = buffer2[j % tamBuffer2];     
+        mensaje = buffer2[j % tamBuffer2];
         //Marcamos libre un espacio del buffer2
         sem_post(&espacioB2);
 
-        //Imprimimos los datos del numero
-        if( esPrimo(info.numero) == 1 ){
-            printf("buffer2[%d] = %d es primo. Hilo %d.\n",j , info.numero, info.hilo);
-        }else{
-            printf("buffer2[%d] = %d no es primo. Hilo %d.\n",j , info.numero, info.hilo);
-        }
+        //Imprimimos el mensaje
+        printf("%s\n", mensaje);
     }
 }
 
@@ -161,6 +135,7 @@ void *consumidorFinal (void *arg){
 int main ( int argc, char* argv[] ) { 
 
     int i, id_hilo[N_HILOS]; 
+    int tamMensaje = 67;
 
     //Comprobar que se introducen solo 3 argumentos
     if (argc != 4){
@@ -209,8 +184,6 @@ int main ( int argc, char* argv[] ) {
         exit(4);
     }
 
-    printf("%d, %d, %d\n", nNumeros, tamBuffer1, tamBuffer2);
-
     //Establecemos el tamaño de buffer1 para el semaforo
     sem_init(&espacioB1, 0, tamBuffer1);
 
@@ -238,11 +211,19 @@ int main ( int argc, char* argv[] ) {
     sem_init(&mutexLeer2, 0, 1);
 
     //Reserva de memoria dinamica para el buffer2
-    buffer2 = (struct Todo*)malloc(tamBuffer2 * sizeof(struct Todo));
+    buffer2 = malloc(tamBuffer2 * sizeof(char *));
     if ( buffer2 == NULL){
 
         fprintf(stderr, "Error al reservar memoria");
         exit(2);
+    }
+    //Al ser un array de dos dimensiones hay que reservar memoria para cada elemento
+    for (i = 0; i < tamBuffer2; i++) {
+        buffer2[i] = malloc(tamMensaje * sizeof(char));
+        if ( buffer2[i] == NULL){
+            fprintf(stderr, "Error al reservar memoria");
+            exit(2);
+        }
     }
 
     //Declaramos los hilos: productor, consumidores intermedios y final
@@ -253,7 +234,6 @@ int main ( int argc, char* argv[] ) {
 
     //Damos un id a los hilos consumidores intermedios
     for(i = 0; i < N_HILOS; i++){
-
         id_hilo[i] = i+1;
     }
 
