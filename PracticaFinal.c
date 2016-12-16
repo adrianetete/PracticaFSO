@@ -94,9 +94,9 @@ void *consumidor (void *arg){
         //Metemos el mensaje en el buffer2
         sem_wait(&espacioB2);
         if( esPrimo(dato) == 1 ){
-            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. Es primo.", id, j, dato);
+            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. Es primo.\n", id, j, dato);
         }else{
-            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. No es primo.", id, j, dato);
+            sprintf(buffer2[j % tamBuffer2], "Hilo: %d. Valor producido numero: %d. Cantidad: %d. No es primo.\n", id, j, dato);
         }
         sem_post(&datoB2);
      }
@@ -105,8 +105,11 @@ void *consumidor (void *arg){
 void *consumidorFinal (void *arg){
 
     char *mensaje;
+    
     int j;
-
+    FILE *fp;
+    fp = fopen("fichero.txt","w");
+    
     while ( 1 ){
 
         //Cerramos el hilo cuando el buffer no tenga mas numeros que procesar
@@ -125,10 +128,13 @@ void *consumidorFinal (void *arg){
         mensaje = buffer2[j % tamBuffer2];
         //Marcamos libre un espacio del buffer2
         sem_post(&espacioB2);
-
-        //Imprimimos el mensaje
-        printf("%s\n", mensaje);
+	
+	fwrite(mensaje,sizeof(char),sizeof("%s",mensaje),fp);
+        
+	//Imprimimos el mensaje
+        printf("%s", mensaje);
     }
+    fclose(fp);
 }
 
 //Metodo principal
