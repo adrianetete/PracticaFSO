@@ -129,11 +129,9 @@ void *consumidorFinal (void *arg){
         //Marcamos libre un espacio del buffer2
         sem_post(&espacioB2);
 	
-	fwrite(mensaje,sizeof(char),sizeof("%s",mensaje),fp);
-        
-	//Imprimimos el mensaje
-        printf("%s", mensaje);
+	fprintf(fp,"%s",mensaje);
     }
+    
     fclose(fp);
 }
 

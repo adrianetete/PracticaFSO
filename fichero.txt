@@ -1,1 +1,19 @@
-Hilo: 2.Hilo: 1.Hilo: 4.Hilo: 3.Hilo: 2.Hilo: 4.Hilo: 1.Hilo: 2.Hilo: 3.Hilo: 2.Hilo: 4.Hilo: 1.Hilo: 3.Hilo: 2.Hilo: 4.Hilo: 3.Hilo: 2.Hilo: 1.Hilo: 4.Hilo: 2.
+Hilo: 1. Valor producido numero: 0. Cantidad: 54353. No es primo.
+Hilo: 3. Valor producido numero: 1. Cantidad: 50541. No es primo.
+Hilo: 2. Valor producido numero: 2. Cantidad: 36061. Es primo.
+Hilo: 4. Valor producido numero: 3. Cantidad: 41166. No es primo.
+Hilo: 3. Valor producido numero: 5. Cantidad: 28691. No es primo.
+Hilo: 3. Valor producido numero: 1. Cantidad: 50541. No es primo.
+Hilo: 4. Valor producido numero: 7. Cantidad: 12347. Es primo.
+Hilo: 3. Valor producido numero: 8. Cantidad: 5086. No es primo.
+Hilo: 1. Valor producido numero: 4. Cantidad: 57955. No es primo.
+Hilo: 3. Valor producido numero: 10. Cantidad: 58393. Es primo.
+Hilo: 2. Valor producido numero: 6. Cantidad: 32840. No es primo.
+Hilo: 4. Valor producido numero: 7. Cantidad: 12347. Es primo.
+Hilo: 3. Valor producido numero: 13. Cantidad: 43632. No es primo.
+Hilo: 4. Valor producido numero: 9. Cantidad: 56797. No es primo.
+Hilo: 3. Valor producido numero: 15. Cantidad: 51827. Es primo.
+Hilo: 1. Valor producido numero: 16. Cantidad: 41572. No es primo.
+Hilo: 2. Valor producido numero: 12. Cantidad: 49441. No es primo.
+Hilo: 3. Valor producido numero: 18. Cantidad: 60839. No es primo.
+Hilo: 4. Valor producido numero: 14. Cantidad: 99159. No es primo.
