@@ -1,10 +1,12 @@
+/*
+    Adrian Calvo rojo
+    Juan Principe Ovelleiro
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include <string.h>
-
-#define N_HILOS 4
 
 //Declaracion de variables globales
 int nNumeros, tamBuffer1, tamBuffer2;
@@ -75,6 +77,7 @@ void *consumidor (void *arg){
 
     while ( 1 ){
 
+        //Cuando el indice global alcanza todos los numeros generados, cierra el hilo
         if (indiceB1 >= nNumeros) {    
             pthread_exit(NULL);
         }
@@ -121,15 +124,15 @@ void *consumidorFinal (void *arg){
         sem_wait(&mutexLeer2);
         j = indiceB2;
         indiceB2++;
-        sem_post(&mutexLeer2); 
+        sem_post(&mutexLeer2);
 
         //Esperar a que haya un dato en el buffer2
         sem_wait(&datoB2);        
         mensaje = buffer2[j % tamBuffer2];
         //Marcamos libre un espacio del buffer2
         sem_post(&espacioB2);
-	
-	fprintf(fp,"%s",mensaje);
+
+    fprintf(fp,"%s",mensaje);
     }
     
     fclose(fp);
@@ -138,8 +141,9 @@ void *consumidorFinal (void *arg){
 //Metodo principal
 int main ( int argc, char* argv[] ) { 
 
-    int i, id_hilo[N_HILOS]; 
-    int tamMensaje = 67;
+    int n_hilos = 4;          //Numero de consumidores intermedios
+    int i, id_hilo[n_hilos]; 
+    int tamMensaje = 67;      //Longitud del mensaje para reservar memoria
 
     //Comprobar que se introducen solo 3 argumentos
     if (argc != 4){
@@ -148,7 +152,7 @@ int main ( int argc, char* argv[] ) {
         exit(-1);
     }
 
-    //Asignacion de las variables
+    //Asignacion de los argumentos a variables globales
     nNumeros = atoi( argv[1] );
     tamBuffer1 = atoi( argv[2] );
     tamBuffer2 = atoi( argv[3] );
@@ -191,7 +195,7 @@ int main ( int argc, char* argv[] ) {
     //Establecemos el tamaño de buffer1 para el semaforo
     sem_init(&espacioB1, 0, tamBuffer1);
 
-    //Iniciamos el buffer1 vacio
+    //Iniciamos el buffer1 vacio, no hay datos
     sem_init(&datoB1, 0, 0);
 
     //El semaforo mutexLeer1 solo va a poder ser usado por un hilo a la vez
@@ -231,18 +235,18 @@ int main ( int argc, char* argv[] ) {
     }
 
     //Declaramos los hilos: productor, consumidores intermedios y final
-    pthread_t hiloProduce, hiloConsume[N_HILOS], hiloConsumeFinal;
+    pthread_t hiloProduce, hiloConsume[n_hilos], hiloConsumeFinal;
 
     //Creamos el hilo para el productor
     pthread_create(&hiloProduce, NULL, productor, (void *) NULL);
 
     //Damos un id a los hilos consumidores intermedios
-    for(i = 0; i < N_HILOS; i++){
+    for(i = 0; i < n_hilos; i++){
         id_hilo[i] = i+1;
     }
 
     //Creamos los hilos para los consumidores intermedios
-    for(i = 0; i < N_HILOS; i++){
+    for(i = 0; i < n_hilos; i++){
         pthread_create(&hiloConsume[i], NULL, consumidor, (void *) &id_hilo[i]);
     }
 
@@ -253,7 +257,7 @@ int main ( int argc, char* argv[] ) {
     pthread_join(hiloProduce, NULL);
 
     //Esperamos a que acaben los procesos consumidores intermedios
-    for(i = 0; i < N_HILOS; i++){
+    for(i = 0; i < n_hilos; i++){
         pthread_join(hiloConsume[i], NULL);
     }
 
@@ -268,6 +272,9 @@ int main ( int argc, char* argv[] ) {
     sem_destroy(&datoB2);
     sem_destroy(&mutexLeer2);
 
+    //Liberamos la memoria reservada para los buffer
+    free(buffer1);
+    free(buffer2);
     //Fin del programa sin errores
     exit(0);
 }
